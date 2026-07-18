@@ -4,6 +4,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -13,15 +15,30 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // Desactivamos CSRF para facilitar las pruebas en Postman
             .csrf(csrf -> csrf.disable())
-            
-            // "Bypass" temporal: permite todo acceso a la API para tus pruebas locales
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/**").permitAll() 
+                
+                .requestMatchers("/api/guias/**").hasAuthority("ROLE_ESTUDIANTE")
                 .anyRequest().authenticated()
+            )
+            // Aquí activamos la validación JWT
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
             );
             
         return http.build();
+    }
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter converter = new JwtGrantedAuthoritiesConverter();
+        // Le decimos a Spring que busque el rol en "jobTitle"
+        converter.setAuthoritiesClaimName("jobTitle");
+        // no necesitamos prefijo extra
+        converter.setAuthorityPrefix(""); 
+
+        JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
+        jwtConverter.setJwtGrantedAuthoritiesConverter(converter);
+        return jwtConverter;
     }
 }
